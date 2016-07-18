@@ -30,7 +30,7 @@ def read_protein_fasta(protein_fasta):
 
 
 # Structure for the WormBase GFF entry
-class GffTranscript():
+class GffTranscript:
     def __init__(self, line, worm_pep_fa):
         line = line.strip()
         fields = line.split('\t')
@@ -50,7 +50,7 @@ class GffTranscript():
         return '\t'.join([';'.join(self.interpro_id), ';'.join(self.interpro_desc)])
 
 
-USAGE = "python make_rsem_edgeR_dataframe.py <outFile> <expression_data.txt> <worm.gff> <worm_uniprot.xml> <worm.pep.fa>"
+USAGE = "python make_rsem_edgeR_dataframe.py <outFile> <expression_data.txt> <worm.gff / ensembl.gtf> <uniprot.xml> <worm.pep.fa / ensembl.pep.fa>"
 if len(sys.argv) != 6: print USAGE; exit()
 outfn, expression_data, worm_gff, worm_xml, worm_pep_fa = sys.argv[1:]
 out = open(outfn, 'w')
