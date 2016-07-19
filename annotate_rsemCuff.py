@@ -23,32 +23,33 @@ class Exon:
 
 
 class Transcript:
-    def __init__(self):
+    def __init__(self, attributes):
         self.chrom, self.start, self.end, self.strand = "", -1, -1, ""
         self.transcript_id = ""
         self.protein_seq = ""
         self.exons = []
         self.attributes = {}
+        self.add_attributes(attributes)
 
     # get the chrom segment info, assuming exons has been initialized
     def get_chrom_segment_info(self):
         id_set = set([exon.transcript_id for exon in self.exons])
         chrom_set = set([exon.chrom for exon in self.exons])
-        if not exons:
+        if not self.exons:
             print "Error processing empty exons for a transcript."
         elif len(id_set) == 1 and len(chrom_set) == 1:
             self.start = min([exon.start for exon in self.exons])
             self.end = max([exon.end for exon in self.exons])
-            self.chrom = iter(next(chrom_set))
-            self.transcript_id = iter(next(id_set))
+            self.chrom = next(iter(chrom_set))
+            self.transcript_id = next(iter(id_set))
         else:
             print "Error processing exons " + ",".join(str(exon) for exon in self.exons) + \
                   ". Exons must all belong to the same transcript to construct a Transcript object."
         
     # Remove attributes that don't match; add the rest
     def add_attributes(self, attributes):
-        attributes = { key : item for key, item in attributes if key not in self.attributes or item == self.attributes[key] }
-        for key, item in attributes:
+        attributes = { key : item for key, item in attributes.items() if key not in self.attributes or item == self.attributes[key] }
+        for key, item in attributes.items():
             self.attributes[key] = item
         return self
 
@@ -64,9 +65,12 @@ class GeneModelHandler:
         curr_transcript_id = ""
 
         # Handle attributes. Add new transcript with these attributes if the transcript ID doesn't match the last.
-        for line in gene_model:
+        line_ct = sum(1 for line in open(gene_model))
+        print "Processing " + gene_model + " (" + str(line_ct) + " lines)."
+        for i, line in enumerate(open(gene_model)):
+            if i % 1000 == 0: print "Processed " + str(i) + " lines out of " + str(line_ct) + " from " + gene_model + "."
             if not line.startswith('#'):
-                line = line.split('\t')
+                line = line.strip().rstrip(';').split('\t')
                 attribute_list = line[8].replace('; ', ';').split(';')
                 new_attributes = self.get_attributes(attribute_list, is_gtf)
                 transcript_id_attrib = 'transcript_id' if is_gtf else 'transcript'
@@ -75,10 +79,9 @@ class GeneModelHandler:
                 elif new_attributes[transcript_id_attrib] == curr_transcript_id:
                     self.transcripts[curr_transcript_id].add_attributes(new_attributes)
                 else:
-                    self.transcripts[curr_transcript_id].get_chrom_segment_info() #wrap up the current transcript
+                    if curr_transcript_id in self.transcripts: self.wrap_up_transcript(curr_transcript_id)
                     curr_transcript_id = new_attributes[transcript_id_attrib]
-                    self.transcripts[curr_transcript_id] = Transcript().add_attributes(new_attributes)
-                    self.transcripts[curr_transcript_id].protein_seq = fasta.get_seq_by_id(curr_transcript_id)
+                    self.transcripts[curr_transcript_id] = Transcript(new_attributes)
 
                 # Handle exon definitions
                 if line[2] == 'exon':
@@ -87,6 +90,12 @@ class GeneModelHandler:
                     exon_number = new_attributes['exon_number'] if is_gtf else new_attributes['exon'].split('.')[1]
                     exon = Exon(chrom, start, end, strand, transcript_id, exon_number, new_attributes)
                     self.transcripts[curr_transcript_id].exons.append(exon)
+
+        self.wrap_up_transcript(curr_transcript_id)
+
+    def wrap_up_transcript(self, curr_transcript_id):
+        self.transcripts[curr_transcript_id].get_chrom_segment_info()
+        self.transcripts[curr_transcript_id].protein_seq = fasta.get_seq_by_id(curr_transcript_id)
 
     def get_attributes(self, attribute_list, is_gtf):
         attributes = {}
@@ -166,7 +175,7 @@ parser = optparse.OptionParser()
 parser.add_option('-i', '--rsem_isoform_results', dest='rsem_isoform_results', help='RSEM version 1.2.25 isoform abundance results file.')
 parser.add_option('-o', '--output_file', dest='output_file', help='Annotated datframe output.')
 parser.add_option('-a', '--pep_all_fasta', dest='pep_all_fasta', help='Protein fasta, corresponding to the genome and gene model used to run cufflinks.')
-parser.add_option('-g', '--gene_model_cuff', dest='gene_model_cuff', help='Cuffmerge GTF file used to run RSEM. Should removed zero-abundance transcripts beforehand and used the reference gene model to annotate.')
+parser.add_option('-c', '--gene_model_cuff', dest='gene_model_cuff', help='Cuffmerge GTF file used to run RSEM. Should removed zero-abundance transcripts beforehand and used the reference gene model to annotate.')
 parser.add_option('-f', '--gene_model_gff', dest='gene_model_gff', default=None, help='GFF gene model file used to run cufflinks.')
 parser.add_option('-g', '--gene_model_gtf', dest='gene_model_gtf', default=None, help='GTF gene model file used to run cufflinks.')
 parser.add_option('-x', '--uniprot_xml', dest='uniprot_xml', help='UniProt-XML for the organism.')
@@ -192,12 +201,12 @@ print "Processed " + str(len(seqs)) + " protein sequences from the protein fasta
 
 # cuffmerge assembly
 cufflinks_assembly = GeneModelHandler(cuff, fasta, not options.gene_model_gff)
-print "Processed " + str(len(cufflinks_assembly.transcripts)) " transcripts from the cufflinks assembly."
+print "Processed " + str(len(cufflinks_assembly.transcripts)) + " transcripts from the cufflinks assembly."
 
 # gene model transcripts
 ref_transcripts = GeneModelHandler(gene_model_ref, fasta, not options.gene_model_gff)
-aggregate_attributes = sorted(list(set([transcript.attributes for transcript in ref_transcripts] + \
-                           [transcript.attributes for transcript in cufflinks_assembly])))
+aggregate_attributes = sorted(list(set([transcript.attributes for transcript in ref_transcripts.transcripts] + \
+                           [transcript.attributes for transcript in cufflinks_assembly.transcripts])))
 print "Processed " + str(len(ref_transcripts.transcripts)) + " transcripts from the " + \
       ("GTF" if options.gene_model_gtf else "GFF") + \
       " gene model."
