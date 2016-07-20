@@ -1,16 +1,26 @@
-#source("http://bioconductor.org/biocLite.R")
-#biocLite("DESeq2")
-#library(DESeq2)
+source("http://bioconductor.org/biocLite.R")
+biocLite("DESeq2")
+library(DESeq2)
 
 #Take in filenames
-sample.list <- '/Volumes/KemiTegel/ProstateTumorAnalysis/DataAnalysisR/rsemStar_mRNA_cuff/prostate_sub_sampleList.txt'
-sample.data.file <- '/Volumes/KemiTegel/ProstateTumorAnalysis/DataAnalysisR/rsemStar_rRNAd_cuff/isoform_dataframe.txt'
-output.folder <- '/Volumes/KemiTegel/ProstateTumorAnalysis/DataAnalysisR/rsemStar_rRNAd_cuff'
+args = commandArgs(trailingOnly=TRUE)
+usage = "Rscript DESeq_tumorVsNormal.R comparison dataframe.txt sample_list.txt output_folder\n
+comparison can be ~patient; ~tissue_type, ~tissue_class, or any combination of those."
+if (length(args) == 0) { stop(usage, call.=FALSE)
+comparison <- args[1]
+sample.data.file <- args[2]
+sample.list <- args[3]
+output.folder <- args[4] 
 
 #Count matrix input
 sample.data<-round(read.delim(sample.data.file, row.names=1, header = TRUE))
 sample.list<-read.delim(sample.list, row.names=1)
-dds <- DESeqDataSetFromMatrix(countData = sample.data, colData = sample.list, design = ~tissue_type)
+if (comparison == "~tissue_type") dds <- DESeqDataSetFromMatrix(countData = sample.data, colData = sample.list, design = ~tissue_type)
+else if (comparison == "~tissue_class") dds <- DESeqDataSetFromMatrix(countData = sample.data, colData = sample.list, design = ~tissue_class)
+else if (comparison == "~patient")  dds <- DESeqDataSetFromMatrix(countData = sample.data, colData = sample.list, design = ~patient)
+else if (comparison == "~patient+tissue_type") dds <- DESeqDataSetFromMatrix(countData = sample.data, colData = sample.list, design = ~patient+tissue_type)
+else if (comparison == "~patient+tissue_class")  dds <- DESeqDataSetFromMatrix(countData = sample.data, colData = sample.list, design = ~patient+tissue_class)
+else if (comparison == "~patient+tissue_class+tissue+type")  dds <- DESeqDataSetFromMatrix(countData = sample.data, colData = sample.list, design = ~patient+tissue_class+tissue+type)
 de <- DESeq(dds)
 
 #Diagnostic MA plot
@@ -57,5 +67,9 @@ dev.off()
 
 #Export results
 res<-results(de)
-write.table(res, file=paste(output.folder,"/tumorVsNormal.txt", sep=""), 
-            sep="\t", quote=FALSE)
+res_df <- data.frame(res@listData, row.names = res@rownames)
+res_df <- res_df[order(res_df$padj),]
+top_res <- subset.data.frame(res_df, res_df$padj <= 0.01)
+top_res <- top_res[order(-abs(top_res$log2FoldChange)),]
+write.table(data.frame("transcript_id"=rownames(res_df), res_df), file=paste(output.folder,"/tumorVsNormal.txt", sep=""), row.names=FALSE, sep="\t", quote=FALSE)
+write.table(data.frame("transcript_id"=rownames(top_res), top_res), file=paste(output.folder,"/tumorVsNormal_topResults.txt", sep=""), row.names=FALSE, sep="\t", quote=FALSE)

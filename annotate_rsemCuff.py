@@ -60,7 +60,7 @@ class Transcript:
 
 
 class GeneModelHandler:
-    def __init__(self, gene_model, fasta, is_gtf):
+    def __init__(self, gene_model, fasta, is_gtf, get_protein_seq):
         self.transcripts = {}
         curr_transcript_id = ""
 
@@ -68,7 +68,7 @@ class GeneModelHandler:
         line_ct = sum(1 for line in open(gene_model))
         print "Processing " + gene_model + " (" + str(line_ct) + " lines)."
         for i, line in enumerate(open(gene_model)):
-            if i % 1000 == 0: print "Processed " + str(i) + " lines out of " + str(line_ct) + " from " + gene_model + "."
+            if i % 30000 == 0: print "Processed " + str(i) + " lines out of " + str(line_ct) + " from " + gene_model + "."
             if not line.startswith('#'):
                 line = line.strip().rstrip(';').split('\t')
                 attribute_list = line[8].replace('; ', ';').split(';')
@@ -79,7 +79,7 @@ class GeneModelHandler:
                 elif new_attributes[transcript_id_attrib] == curr_transcript_id:
                     self.transcripts[curr_transcript_id].add_attributes(new_attributes)
                 else:
-                    if curr_transcript_id in self.transcripts: self.wrap_up_transcript(curr_transcript_id)
+                    if curr_transcript_id in self.transcripts: self.wrap_up_transcript(curr_transcript_id, get_protein_seq)
                     curr_transcript_id = new_attributes[transcript_id_attrib]
                     self.transcripts[curr_transcript_id] = Transcript(new_attributes)
 
@@ -93,9 +93,9 @@ class GeneModelHandler:
 
         self.wrap_up_transcript(curr_transcript_id)
 
-    def wrap_up_transcript(self, curr_transcript_id):
+    def wrap_up_transcript(self, curr_transcript_id, get_protein_seq):
         self.transcripts[curr_transcript_id].get_chrom_segment_info()
-        self.transcripts[curr_transcript_id].protein_seq = fasta.get_seq_by_id(curr_transcript_id)
+        if get_protein_seq: self.transcripts[curr_transcript_id].protein_seq = fasta.get_seq_by_id(curr_transcript_id)
 
     def get_attributes(self, attribute_list, is_gtf):
         attributes = {}
@@ -153,6 +153,11 @@ class FastaManager:
         return ""
 
 
+class SlnckyManager:
+    def __init__(self):
+        pass
+
+
 HTML_NS = "http://uniprot.org/uniprot"
 XSI_NS = "http://www.w3.org/2001/XMLSchema-instance"
 NAMESPACE_MAP = {None:HTML_NS, "xsi":XSI_NS}
@@ -172,13 +177,16 @@ def condense_xml_entry(entry):
 
 # Parse Command Line
 parser = optparse.OptionParser()
-parser.add_option('-i', '--rsem_isoform_results', dest='rsem_isoform_results', help='RSEM version 1.2.25 isoform abundance results file.')
-parser.add_option('-o', '--output_file', dest='output_file', help='Annotated datframe output.')
-parser.add_option('-a', '--pep_all_fasta', dest='pep_all_fasta', help='Protein fasta, corresponding to the genome and gene model used to run cufflinks.')
-parser.add_option('-c', '--gene_model_cuff', dest='gene_model_cuff', help='Cuffmerge GTF file used to run RSEM. Should removed zero-abundance transcripts beforehand and used the reference gene model to annotate.')
-parser.add_option('-f', '--gene_model_gff', dest='gene_model_gff', default=None, help='GFF gene model file used to run cufflinks.')
-parser.add_option('-g', '--gene_model_gtf', dest='gene_model_gtf', default=None, help='GTF gene model file used to run cufflinks.')
-parser.add_option('-x', '--uniprot_xml', dest='uniprot_xml', help='UniProt-XML for the organism.')
+group = optparse.OptionGroup(parser, "Input Files", "These can be either a single file or comma-separated lists of equal length.")
+group.add_option('-i', '--rsem_isoform_results', dest='rsem_isoform_results', help='RSEM version 1.2.25 isoform abundance results file.')
+group.add_option('-o', '--output_file', dest='output_file', help='Annotated datframe output.')
+group.add_option('-a', '--pep_all_fasta', dest='pep_all_fasta', help='Protein fasta, corresponding to the genome and gene model used to run cufflinks.')
+group.add_option('-c', '--gene_model_cuff', dest='gene_model_cuff', help='Cuffmerge GTF file used to run RSEM. Should removed zero-abundance transcripts beforehand and used the reference gene model to annotate.')
+group.add_option('-f', '--gene_model_gff', dest='gene_model_gff', default=None, help='GFF gene model file used to run cufflinks.')
+group.add_option('-g', '--gene_model_gtf', dest='gene_model_gtf', default=None, help='GTF gene model file used to run cufflinks.')
+group.add_option('-x', '--uniprot_xml', dest='uniprot_xml', help='UniProt-XML for the organism.')
+group.add_option('-s', '--slncky_directory', dest='slncky_directory', help='Directory with slncky results for cufflinks transfrags specified as GENE_MODEL_CUFF.')
+parser.add_option_group(group)
 (options, args) = parser.parse_args()
 
 ### FILE SETUP
@@ -200,11 +208,11 @@ seqs = set(fasta.sequences)
 print "Processed " + str(len(seqs)) + " protein sequences from the protein fasta."
 
 # cuffmerge assembly
-cufflinks_assembly = GeneModelHandler(cuff, fasta, not options.gene_model_gff)
+cufflinks_assembly = GeneModelHandler(cuff, fasta, not options.gene_model_gff, False)
 print "Processed " + str(len(cufflinks_assembly.transcripts)) + " transcripts from the cufflinks assembly."
 
 # gene model transcripts
-ref_transcripts = GeneModelHandler(gene_model_ref, fasta, not options.gene_model_gff)
+ref_transcripts = GeneModelHandler(gene_model_ref, fasta, not options.gene_model_gff, True)
 aggregate_attributes = sorted(list(set([transcript.attributes for transcript in ref_transcripts.transcripts] + \
                            [transcript.attributes for transcript in cufflinks_assembly.transcripts])))
 print "Processed " + str(len(ref_transcripts.transcripts)) + " transcripts from the " + \
