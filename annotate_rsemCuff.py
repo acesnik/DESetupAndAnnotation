@@ -18,7 +18,7 @@ class Exon:
         self.attributes = attributes
 
     def __str__(self):
-        return str(self.transcript_id) + "." + str(self.exon_no) + ":" \
+        return str(self.transcript_id) + "." + str(self.exon_no) + ":" + \
             ":".join(str(x) for x in [self.chrom, self.start, self.end, self.strand])
 
 
@@ -58,7 +58,7 @@ class Transcript:
 
     def __str__(self):
         # transfrag_specifications
-        return ";".join(str(x) for x in [':'.join([self.transcript_id, self.chrom, self.start, self.end, self.strand])] + [str(exon) for exon in self.exons]) + '\t' \
+        return ";".join(str(x) for x in [':'.join([self.transcript_id, self.chrom, self.start, self.end, self.strand])] + [str(exon) for exon in self.exons]) + '\t' +\
                 ';'.join(str(key) + ":" + str(value) for key, value in self.attributes.items())
 
 
@@ -170,7 +170,9 @@ class SlnckyManager:
                 if i % 1000 == 0: print "Processed " + str(i) + " lines out of " + str(lnc_info_line_ct) + " from " + lnc_info_file + "."
                 lnc_info = line.strip().split('\t')
                 if lnc_info[0] in cufflinks_transcripts:
-                    cufflinks_assembly.transcripts[lnc_info[0]].attributes["lnc_info"] = ';'.join(str(x) for x in lnc_info[1:])
+                    if "lnc_info" in cufflinks_assembly.transcripts[lnc_info[0]].attributes:
+                        cufflinks_assembly.transcripts[lnc_info[0]].attributes["lnc_info"] += '|' + ';'.join(str(x) for x in lnc_info[1:])
+                    else: cufflinks_assembly.transcripts[lnc_info[0]].attributes["lnc_info"] = ';'.join(str(x) for x in lnc_info[1:])
 
         filtered_info_line_ct = sum(1 for line in open(slncky_prefix + ".filtered_info.txt"))
         with open(slncky_prefix + ".filtered_info.txt") as filtered_info_file:
@@ -179,7 +181,9 @@ class SlnckyManager:
                 if i % 1000 == 0: print "Processed " + str(i) + " lines out of " + str(filtered_info_line_ct) + " from " + filtered_info_file + "."
                 filtered_info = line.strip().split('\t')
                 if filtered_info[0] in cufflinks_transcripts:
-                    cufflinks_assembly.transcripts[filtered_info[0]].attributes["filtered_info"] = ';'.join(str(x) for x in filtered_info[1:])
+                    if "filtered_info" in cufflinks_assembly.transcripts[filtered_info[0]].attributes:
+                        cufflinks_assembly.transcripts[filtered_info[0]].attributes["filtered_info"] += '|' + ';'.join(str(x) for x in filtered_info[1:])
+                    else: cufflinks_assembly.transcripts[filtered_info[0]].attributes["filtered_info"] = ';'.join(str(x) for x in filtered_info[1:])
 
 
 HTML_NS = "http://uniprot.org/uniprot"
@@ -242,7 +246,7 @@ cufflinks_assembly = GeneModelHandler(cuff, cuff_transcripts, None, True)
 print "Processed " + str(len(cufflinks_assembly.transcripts)) + " transcripts from the cufflinks assembly."
 
 # slncky
-slncky_annotations = SlnckyManager(cufflinks_assembly, options.slncky_prefix)
+if options.slncky_prefix: slncky_annotations = SlnckyManager(cufflinks_assembly, options.slncky_prefix)
 
 # pep_all_fasta from reference
 fasta = FastaManager(open(pep_fa))
