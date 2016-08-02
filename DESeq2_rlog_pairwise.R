@@ -15,15 +15,19 @@ option_list = list(
               help="Sample list. Each column can be a variable in the design. All entries must start with a letter."),
   make_option(c("-o", "--out.folder"), type="character", default=".", 
               help="output file name [default= %default]")
-  make_option(c("-e", "--main.effect"), type="character", default="main_effect",
-              help="main effect, prefix for filenames")
 ); 
 opt = parse_args(OptionParser(option_list=option_list));
 
 sample.data.file <- opt$input.dataframe
 sample.list <- opt$sample.list
 output.folder <- opt$out.folder
-main.effect <- opt$main.effect
+
+# note: remember to change the design, too
+# note: remember to change the heatmap labels, too
+main.effect <- "aggVsInd"
+comparison <- "class"
+up <- "aggressive"
+down <- "indolent"
 
 #Count matrix input
 sample.data<-round(read.delim(sample.data.file, row.names=1, header = TRUE))
@@ -60,7 +64,7 @@ plotDispEsts(de)
 dev.off()
 
 this.plot <- "effectOnNormal"
-res<-results(de, contrast=c("class","aggressive","indolent"))
+res<-results(de, contrast=c(comparison, up , down))
 res_df <- data.frame(res@listData, row.names = res@rownames)
 res_df <- res_df[order(res_df$padj),]
 res_df$negLogPadj <- -log(res_df$padj)

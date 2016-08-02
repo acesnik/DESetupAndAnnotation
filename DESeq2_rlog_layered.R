@@ -15,15 +15,27 @@ option_list = list(
               help="Sample list. Each column can be a variable in the design. All entries must start with a letter."),
   make_option(c("-o", "--out.folder"), type="character", default=".", 
               help="output file name [default= %default]")
-  make_option(c("-e", "--main.effect"), type="character", default="main_effect",
-              help="main effect, prefix for filenames")
 ); 
 opt = parse_args(OptionParser(option_list=option_list));
 
 sample.data.file <- opt$input.dataframe
 sample.list <- opt$sample.list
 output.folder <- opt$out.folder
-main.effect <- opt$main.effect
+
+# note: remember to change the design, too (~secondary.comparison+primary.comparison+secondary.comparison:primary.comparison)
+# note: remember to change the heatmap labels, too
+main.effect <- "aggVsInd"
+primary.comparison <- "class"
+primary.listed.first <- "aggressive"
+primary.listed.second <- "indolent"
+primary.up <- "aggressive"
+primary.down <- "indolent"
+secondary.comparison <- "type"
+secondary.listed.first <- "normal"
+secondary.listed.second <- "tumor"
+resultsNames1 <- paste(secondary.comparison, "_", secondary.listed.second, "_vs_", secondary.listed.first) #type_tumor_vs_normal
+resultsNames2 <- paste(primary.comparison, "_", primary.listed.second, "_vs_", primary.listed.first) #class_indolent_vs_aggressive
+resultsNames3 <- paste(secondary.comparison, secondary.listed.second, ".", primary.comparison, primary.listed.second) #typetumor.classindolent
 
 #Count matrix input
 sample.data<-round(read.delim(sample.data.file, row.names=1, header = TRUE))
@@ -59,8 +71,10 @@ pdf(paste(output.folder,"/", main.effect, "_", this.plot, ".pdf", sep=""), width
 plotDispEsts(de)
 dev.off()
 
-this.plot <- "effectOnNormal"
-res<-results(de, contrast=c("class","aggressive","indolent"))
+#this.plot <- "effectOnNormal"
+#res<-results(de, contrast=c("class", "aggressive", "indolent"))
+this.plot <- paste("effect_on_", secondary.listed.first)
+res<-results(de, contrast=c(primary.comparison, primary.up, primary.down))
 res_df <- data.frame(res@listData, row.names = res@rownames)
 res_df <- res_df[order(res_df$padj),]
 res_df$negLogPadj <- -log(res_df$padj)
@@ -74,8 +88,10 @@ write.table(data.frame("transcript_id"=rownames(res_df), res_df),
 write.table(data.frame("transcript_id"=rownames(top_res), top_res), 
             file=paste(output.folder, "/", main.effect, "_", this.plot, "_topResults.txt", sep=""), row.names=FALSE, sep="\t", quote=FALSE)
 
-this.plot <- "effectOnTumor"
-res<-results(de, list(c("class_indolent_vs_aggressive","typetumor.classindolent")))
+#this.plot <- "effectOnTumor"
+#res<-results(de, list(c("class_indolent_vs_aggressive",  "typetumor.classindolent")))
+this.plot <- paste("effect_on_", secondary.listed.second)
+res<-results(de, list(c(resultsNames2,  resultsNames3)))
 res_df <- data.frame(res@listData, row.names = res@rownames)
 res_df <- res_df[order(res_df$padj),]
 res_df$negLogPadj <- -log(res_df$padj)
@@ -89,8 +105,10 @@ write.table(data.frame("transcript_id"=rownames(res_df), res_df),
 write.table(data.frame("transcript_id"=rownames(top_res), top_res), 
             file=paste(output.folder, "/", main.effect, "_", this.plot, "_topResults.txt", sep=""), row.names=FALSE, sep="\t", quote=FALSE)
 
-this.plot <- "effectDifferenceBtwTumorNormal"
-res<-results(de, name="typetumor.classindolent")
+#this.plot <- "effectDifferenceBtwTumorNormal"
+#res<-results(de, name="typetumor.classindolent")
+this.plot <- paste("effect_difference_btw_", secondary.listed.first, secondary.listed.first)
+res<-results(de, name=resultsNames3)
 res_df <- data.frame(res@listData, row.names = res@rownames)
 res_df <- res_df[order(res_df$padj),]
 res_df$negLogPadj <- -log(res_df$padj)
