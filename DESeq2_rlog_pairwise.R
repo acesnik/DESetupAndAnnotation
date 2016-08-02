@@ -29,7 +29,7 @@ main.effect <- opt$main.effect
 sample.data<-round(read.delim(sample.data.file, row.names=1, header = TRUE))
 colnames(sample.data) <- NULL
 sample.list<-read.delim(sample.list, row.names=1)
-dds <- DESeqDataSetFromMatrix(countData = sample.data, colData = sample.list, design=~type+class+type:class)
+dds <- DESeqDataSetFromMatrix(countData = sample.data, colData = sample.list, design=~class)
 de <- DESeq(dds)
 
 this.plot <- "diagnosticMAplot"
@@ -73,32 +73,6 @@ write.table(data.frame("transcript_id"=rownames(res_df), res_df),
             file=paste(output.folder, "/", main.effect, "_", this.plot, ".txt", sep=""), row.names=FALSE, sep="\t", quote=FALSE)
 write.table(data.frame("transcript_id"=rownames(top_res), top_res), 
             file=paste(output.folder, "/", main.effect, "_", this.plot, "_topResults.txt", sep=""), row.names=FALSE, sep="\t", quote=FALSE)
-
-this.plot <- "effectOnTumor"
-res<-results(de, list(c("class_indolent_vs_aggressive","typetumor.classindolent")))
-res_df <- data.frame(res@listData, row.names = res@rownames)
-res_df <- res_df[order(res_df$padj),]
-res_df$negLogPadj <- -log(res_df$padj)
-pdf(paste(output.folder, "/", main.effect, "_", this.plot, "_volcano.pdf", sep=""))
-ggplot(res_df, aes(y=negLogPadj, x=log2FoldChange)) + labs(x="Log-2 Fold Change", y="-log(p-value, adjusted)") + geom_point()
-dev.off()
-top_res <- subset.data.frame(res_df, res_df$padj <= 0.01)
-top_res <- top_res[order(-abs(top_res$log2FoldChange)),]
-write.table(data.frame("transcript_id"=rownames(res_df), res_df), 
-            file=paste(output.folder, "/", main.effect, "_", this.plot, ".txt", sep=""), row.names=FALSE, sep="\t", quote=FALSE)
-write.table(data.frame("transcript_id"=rownames(top_res), top_res), 
-            file=paste(output.folder, "/", main.effect, "_", this.plot, "_topResults.txt", sep=""), row.names=FALSE, sep="\t", quote=FALSE)
-
-this.plot <- "effectDifferenceBtwTumorNormal"
-res<-results(de, name="typetumor.classindolent")
-res_df <- data.frame(res@listData, row.names = res@rownames)
-res_df <- res_df[order(res_df$padj),]
-res_df$negLogPadj <- -log(res_df$padj)
-pdf(paste(output.folder, "/", main.effect, "_", this.plot, "_volcano.pdf", sep=""))
-ggplot(res_df, aes(y=negLogPadj, x=log2FoldChange)) + labs(x="Log-2 Fold Change", y="-log(p-value, adjusted)") + geom_point()
-dev.off()
-write.table(data.frame("transcript_id"=rownames(res_df), res_df), 
-            file=paste(output.folder, "/", main.effect, "_", this.plot, ".txt", sep=""), row.names=FALSE, sep="\t", quote=FALSE)
 
 save.image(file=paste(output.folder, "/", main.effect, ".RData", sep=""))
 q()
