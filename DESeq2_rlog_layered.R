@@ -15,18 +15,20 @@ option_list = list(
               help="Sample list. Each column can be a variable in the design. All entries must start with a letter."),
   make_option(c("-o", "--out.folder"), type="character", default=".", 
               help="output file name [default= %default]")
+  make_option(c("-e", "--main.effect"), type="character", default="main_effect",
+              help="main effect, prefix for filenames")
 ); 
 opt = parse_args(OptionParser(option_list=option_list));
 
 sample.data.file <- opt$input.dataframe
 sample.list <- opt$sample.list
 output.folder <- opt$out.folder
+main.effect <- opt$main.effect
 
 #Count matrix input
 sample.data<-round(read.delim(sample.data.file, row.names=1, header = TRUE))
 colnames(sample.data) <- NULL
 sample.list<-read.delim(sample.list, row.names=1)
-main.effect <- "aggVsInd"
 dds <- DESeqDataSetFromMatrix(countData = sample.data, colData = sample.list, design=~type+class+type:class)
 de <- DESeq(dds)
 
