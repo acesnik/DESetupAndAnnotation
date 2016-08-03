@@ -1,26 +1,23 @@
+#Take in filenames
 options(repos = c(CRAN = "https://cran.rstudio.com"))
-#source("http://bioconductor.org/biocLite.R")
-#biocLite("DESeq2")
-library(DESeq2)
 #install.packages("optparse")
 library(optparse)
 library("RColorBrewer")
 library("ggplot2")
-
-#Take in filenames
 option_list = list(
-  make_option(c("-i", "--input.dataframe"), type="character", default = NULL, 
-              help="Dataset of estimated counts from RSEM in this case. Each column should correspond to the descending rows in the sample list."),
-  make_option(c("-s", "--sample.list"), type="character", default = NULL, 
-              help="Sample list. Each column can be a variable in the design. All entries must start with a letter."),
-  make_option(c("-o", "--out.folder"), type="character", default=".", 
-              help="output file name [default= %default]")
-); 
+make_option(c("-i", "--input.dataframe"), type="character", default = NULL,
+help="Dataset of estimated counts from RSEM in this case. Each column should correspond to the descending rows in the sample list."),
+make_option(c("-s", "--sample.list"), type="character", default = NULL,
+help="Sample list. Each column can be a variable in the design. All entries must start with a letter."),
+make_option(c("-o", "--out.folder"), type="character", default=".",
+help="output file name [default= %default]")
+);
 opt = parse_args(OptionParser(option_list=option_list));
 
 sample.data.file <- opt$input.dataframe
 sample.list <- opt$sample.list
 output.folder <- opt$out.folder
+
 
 # note: remember to change the design, too
 # note: remember to change the heatmap labels, too
@@ -30,6 +27,9 @@ up <- "aggressive"
 down <- "indolent"
 
 #Count matrix input
+#source("http://bioconductor.org/biocLite.R")
+#biocLite("DESeq2")
+library(DESeq2)
 sample.data<-round(read.delim(sample.data.file, row.names=1, header = TRUE))
 colnames(sample.data) <- NULL
 sample.list<-read.delim(sample.list, row.names=1)
@@ -63,7 +63,7 @@ pdf(paste(output.folder,"/", main.effect, "_", this.plot, ".pdf", sep=""), width
 plotDispEsts(de)
 dev.off()
 
-this.plot <- "effectOnNormal"
+this.plot <- paste(up, "_vs_", down)
 res<-results(de, contrast=c(comparison, up , down))
 res_df <- data.frame(res@listData, row.names = res@rownames)
 res_df <- res_df[order(res_df$padj),]

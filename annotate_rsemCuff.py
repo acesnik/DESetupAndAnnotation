@@ -37,17 +37,17 @@ class Transcript:
         id_set = set([exon.transcript_id for exon in self.exons])
         chrom_set = set([exon.chrom for exon in self.exons])
         strand_set = set([exon.strand for exon in self.exons])
-        if not self.exons:
-            print "Error processing empty exons for a transcript."
-        elif len(id_set) == 1 and len(chrom_set) == 1:
+        # if not self.exons:
+            # print "Error processing empty exons for a transcript."
+        if self.exons and len(id_set) == 1 and len(chrom_set) == 1:
             self.start = min([exon.start for exon in self.exons])
             self.end = max([exon.end for exon in self.exons])
             self.chrom = next(iter(chrom_set))
             self.strand = next(iter(strand_set))
             self.transcript_id = next(iter(id_set))
-        else:
-            print "Error processing exons " + ",".join(str(exon) for exon in self.exons) + \
-                  ". Exons must all belong to the same transcript to construct a Transcript object."
+        # else:
+        #     print "Error processing exons " + ",".join(str(exon) for exon in self.exons) + \
+        #           ". Exons must all belong to the same transcript to construct a Transcript object."
         
     # Remove attributes that don't match; add the rest
     def add_attributes(self, attributes):
@@ -58,7 +58,7 @@ class Transcript:
 
     def __str__(self):
         # transfrag_specifications
-        return ";".join(str(x) for x in [':'.join([self.transcript_id, self.chrom, self.start, self.end, self.strand])] + [str(exon) for exon in self.exons]) + '\t' +\
+        return ";".join(str(x) for x in [':'.join([str(x) for x in [self.transcript_id, self.chrom, self.start, self.end, self.strand]])] + [str(exon) for exon in self.exons]) + '\t' +\
                 ';'.join(str(key) + ":" + str(value) for key, value in self.attributes.items())
 
 
@@ -68,6 +68,7 @@ class GeneModelHandler:
         self.selected_ids = selected_ids
         get_protein_seq = fasta is not None
         curr_transcript_id = ""
+        exon_count = 1
 
         # Handle attributes. Add new transcript with these attributes if the transcript ID doesn't match the last.
         line_ct = sum(1 for line in open(gene_model))
@@ -76,6 +77,7 @@ class GeneModelHandler:
             if i % 30000 == 0: print "Processed " + str(i) + " lines out of " + str(line_ct) + " from " + gene_model + "."
             if not line.startswith('#'):
                 line = line.strip().rstrip(';').split('\t')
+                if len(line) < 9: continue
                 attribute_list = line[8].replace('; ', ';').split(';')
                 new_attributes = self.get_attributes(attribute_list, is_gtf)
                 transcript_id_attrib = 'transcript_id' if is_gtf else 'transcript'
@@ -86,6 +88,7 @@ class GeneModelHandler:
                     else:
                         if curr_transcript_id in self.transcripts:
                             self.wrap_up_transcript(curr_transcript_id, get_protein_seq)
+                            exon_count = 1
                         curr_transcript_id = new_attributes[transcript_id_attrib]
                         self.transcripts[curr_transcript_id] = Transcript(new_attributes)
 
@@ -93,7 +96,11 @@ class GeneModelHandler:
                     if line[2] == 'exon':
                         chrom, start, end, strand = line[0], line[3], line[4], line[6]
                         transcript_id = new_attributes[transcript_id_attrib]
-                        exon_number = new_attributes['exon_number'] if is_gtf else new_attributes['exon'].split('.')[1]
+                        if 'exon_number' in new_attributes or 'exon' in new_attributes:
+                            exon_number = new_attributes['exon_number'] if is_gtf else new_attributes['exon'].split('.')[1]
+                        else:
+                            exon_number = exon_count
+                            exon_count += 1
                         exon = Exon(chrom, start, end, strand, transcript_id, exon_number, new_attributes)
                         self.transcripts[curr_transcript_id].exons.append(exon)
 
@@ -102,33 +109,36 @@ class GeneModelHandler:
 
     def wrap_up_transcript(self, curr_transcript_id, get_protein_seq):
         self.transcripts[curr_transcript_id].get_chrom_segment_info()
-        if get_protein_seq: self.transcripts[curr_transcript_id].protein_seq = fasta.get_seq_by_id(curr_transcript_id)
+        if get_protein_seq:
+            seq = fasta.get_seq_by_id(curr_transcript_id)
+            if not seq and len(curr_transcript_id) == 20: seq = fasta.get_seq_by_id(curr_transcript_id[11:]) # starts with "transcript:"
+            self.transcripts[curr_transcript_id].protein_seq = seq
         self.transcripts[curr_transcript_id].wrapped_up = True
 
     def get_attributes(self, attribute_list, is_gtf):
         attributes = {}
         for item in attribute_list:
-                #GTF attributes
-                if is_gtf:
-                    item = item.split(' ')
-                    attributes[item[0]] = item[1][1:-1]
+            #GTF attributes
+            if is_gtf:
+                item = item.split(' ')
+                attributes[item[0]] = item[1][1:-1]
 
-                #GFF attributes
-                else:
-                    item = item.split('=')
-                    if item[0] != 'info' and item[1].contains(':'):
-                        gff_field = item[1].split(':')
-                        attributes[gff_field[0]] = gff_field[1]
-                    elif item[0] == 'info' and item[1].contains('InterPro'):
-                        interpro_id = []
-                        interpro_desc = []
-                        for interpro in item[1][5:].split(' %0A'):
-                            ipr_acce_idx = interpro.find('IPR')
-                            ipr_desc_idx = interpro.find('description:') + 12
-                            interpro_id.append(interpro[ipr_acce_idx: ipr_acce_idx + 9])
-                            interpro_desc.append(interpro[ipr_desc_idx:])
-                        attributes['interpro_id'] = interpro_id
-                        attributes['interpro_desc'] = interpro_desc
+            #GFF attributes
+            else:
+                item = item.split('=')
+                if item[0] == 'ID' and item[1].find(':') > 0:
+                    gff_field = item[1].split(':')
+                    attributes[gff_field[0]] = gff_field[1]
+                elif item[0] == 'info' and item[1].find('InterPro') > 0:
+                    interpro_id = []
+                    interpro_desc = []
+                    for interpro in item[1][5:].split(' %0A'):
+                        ipr_acce_idx = interpro.find('IPR')
+                        ipr_desc_idx = interpro.find('description:') + 12
+                        interpro_id.append(interpro[ipr_acce_idx: ipr_acce_idx + 9])
+                        interpro_desc.append(interpro[ipr_desc_idx:])
+                    attributes['interpro_id'] = interpro_id
+                    attributes['interpro_desc'] = interpro_desc
         return attributes
 
 

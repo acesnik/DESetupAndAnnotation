@@ -1,11 +1,6 @@
 options(repos = c(CRAN = "https://cran.rstudio.com"))
-#source("http://bioconductor.org/biocLite.R")
-#biocLite("DESeq2")
-library(DESeq2)
 #install.packages("optparse")
 library(optparse)
-library("RColorBrewer")
-library("ggplot2")
 
 #Take in filenames
 option_list = list(
@@ -21,6 +16,12 @@ opt = parse_args(OptionParser(option_list=option_list));
 sample.data.file <- opt$input.dataframe
 sample.list <- opt$sample.list
 output.folder <- opt$out.folder
+
+#source("http://bioconductor.org/biocLite.R")
+#biocLite("DESeq2")
+library(DESeq2)
+library("RColorBrewer")
+library("ggplot2")
 
 # note: remember to change the design, too (~secondary.comparison+primary.comparison+secondary.comparison:primary.comparison)
 # note: remember to change the heatmap labels, too
