@@ -1,0 +1,6 @@
+t <- assay(rlt)
+interest<-c("transcript:ASU_10011","transcript:ASU_01380","transcript:ASU_00213","transcript:ASU_03075","transcript:ASU_04784","transcript:ASU_02085","transcript:ASU_10119","transcript:ASU_04329","transcript:ASU_12069","transcript:ASU_00924","transcript:ASU_13602","transcript:ASU_08714","transcript:ASU_13774","transcript:ASU_10042","transcript:ASU_08029","transcript:ASU_01503")
+colnames(t) <- paste(rownames(sample.list), " : ", sample.list$cell.type, " : ", sample.list$cell.function)
+pdf('/Volumes/KemiTegel/WormSingleCell/2_NewDataTrimmedCuffCanon/neuronVsMuscle_canon/annotated_topResults/cellTypeAndFunction_NeuronExcitatory_vs_NeuronInhibitory_topResults_interestingLines.pdf', width=11, height=6)
+heatmap(t[interest,], col=hmcol, Rowv=FALSE, Colv=FALSE, scale="none", dendrogram="none", trace="none", margin=c(10,6))
+dev.off()

@@ -34,9 +34,9 @@ primary.down <- "indolent"
 secondary.comparison <- "type"
 secondary.listed.first <- "normal"
 secondary.listed.second <- "tumor"
-resultsNames1 <- paste(secondary.comparison, "_", secondary.listed.second, "_vs_", secondary.listed.first) #type_tumor_vs_normal
-resultsNames2 <- paste(primary.comparison, "_", primary.listed.second, "_vs_", primary.listed.first) #class_indolent_vs_aggressive
-resultsNames3 <- paste(secondary.comparison, secondary.listed.second, ".", primary.comparison, primary.listed.second) #typetumor.classindolent
+resultsNames1 <- paste(secondary.comparison, "_", secondary.listed.second, "_vs_", secondary.listed.first, sep="") #type_tumor_vs_normal
+resultsNames2 <- paste(primary.comparison, "_", primary.listed.second, "_vs_", primary.listed.first, sep="") #class_indolent_vs_aggressive
+resultsNames3 <- paste(secondary.comparison, secondary.listed.second, ".", primary.comparison, primary.listed.second, sep="") #typetumor.classindolent
 
 #Count matrix input
 sample.data<-round(read.delim(sample.data.file, row.names=1, header = TRUE))

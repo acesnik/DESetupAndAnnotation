@@ -18,6 +18,7 @@ sample.data.file <- opt$input.dataframe
 sample.list <- opt$sample.list
 output.folder <- opt$out.folder
 
+### MAIN EFFECT: CELL TYPE AND FUNCTION ###
 # note: remember to change the design, too
 # note: remember to change the heatmap labels, too
 main.effect <- "cellTypeAndFunction"
@@ -131,6 +132,7 @@ write.table(data.frame("transcript_id"=rownames(top_res), top_res),
 
 save.image(file=paste(output.folder, "/", main.effect, ".RData", sep=""))
 
+### MAIN EFFECT: CELL TYPE ###
 main.effect <- "cellType"
 comparison <- "cell.type"
 up <- "Neuron"
@@ -181,6 +183,60 @@ write.table(data.frame("transcript_id"=rownames(res_df), res_df),
 file=paste(output.folder, "/", main.effect, "_", this.plot, ".txt", sep=""), row.names=FALSE, sep="\t", quote=FALSE)
 write.table(data.frame("transcript_id"=rownames(top_res), top_res),
 file=paste(output.folder, "/", main.effect, "_", this.plot, "_topResults.txt", sep=""), row.names=FALSE, sep="\t", quote=FALSE)
+
+save.image(file=paste(output.folder, "/", main.effect, ".RData", sep=""))
+
+### MAIN EFFECT: CELL FUNCTION AND PROJECTION ###
+main.effect <- "cellFunctionAndProjection"
+comparison2 <- "function.projection"
+up5 <- "ExcitatoryAnterior"
+down5 <- "ExcitatoryPosterior"
+
+dds <- DESeqDataSetFromMatrix(countData = sample.data, colData = sample.list, design=~function.projection)
+de <- DESeq(dds)
+this.plot <- "diagnosticMAplot"
+pdf(paste(output.folder,"/",main.effect,"_", this.plot, ".pdf", sep=""), width = 11, height = 6)
+plotMA(de)
+dev.off()
+
+# Regularized logarithmic transformation, which does sample-wise normalization of counts
+rlt <- rlogTransformation(de, blind=TRUE)
+save.image(file=paste(output.folder, "/", main.effect, ".RData", sep=""))
+
+
+this.plot <- "rlt_transcriptLevelHeatmap"
+select <- order(rowMeans(counts(de, normalized=TRUE)), decreasing=TRUE)[1:30]
+hmcol <- colorRampPalette(brewer.pal(9, "GnBu"))(100)
+pdf(paste(output.folder, "/", main.effect, "_", this.plot, ".pdf", sep=""), width = 11, height = 6)
+heatmap(assay(rlt)[select,], col = hmcol, Rowv = FALSE, Colv = FALSE, scale="none", dendrogram="none", trace="none", margin=c(10, 6))
+dev.off()
+this.plot <- "rlt_samplewiseHeatmap"
+de@colData$sample <- rownames(sample.list)
+distsRL <- dist(t(assay(rlt)))
+mat <- as.matrix(distsRL)
+rownames(mat) <- colnames(mat) <- with(colData(de), paste(sample, cell, function.projection, sep=" : "))
+pdf(paste(output.folder, "/", main.effect, "_", this.plot, ".pdf", sep=""), width = 6, height = 6)
+heatmap(mat, trace="none", col = rev(hmcol), margin=c(13, 13))
+dev.off()
+this.plot <- "dispersionDiagnostic"
+pdf(paste(output.folder,"/", main.effect, "_", this.plot, ".pdf", sep=""), width = 11, height = 6)
+plotDispEsts(de)
+dev.off()
+
+this.plot <- paste(up5, "_vs_", down5)
+res<-results(de, contrast=c(comparison2, up5, down5))
+res_df <- data.frame(res@listData, row.names = res@rownames)
+res_df <- res_df[order(res_df$padj),]
+res_df$negLogPadj <- -log(res_df$padj)
+pdf(paste(output.folder, "/", main.effect, "_", this.plot, "_volcano.pdf", sep=""))
+ggplot(res_df, aes(y=negLogPadj, x=log2FoldChange)) + labs(x="Log-2 Fold Change", y="-log(p-value, adjusted)") + geom_point()
+dev.off()
+top_res <- subset.data.frame(res_df, res_df$padj <= 0.01)
+top_res <- top_res[order(-abs(top_res$log2FoldChange)),]
+write.table(data.frame("transcript_id"=rownames(res_df), res_df),
+            file=paste(output.folder, "/", main.effect, "_", this.plot, ".txt", sep=""), row.names=FALSE, sep="\t", quote=FALSE)
+write.table(data.frame("transcript_id"=rownames(top_res), top_res),
+            file=paste(output.folder, "/", main.effect, "_", this.plot, "_topResults.txt", sep=""), row.names=FALSE, sep="\t", quote=FALSE)
 
 save.image(file=paste(output.folder, "/", main.effect, ".RData", sep=""))
 

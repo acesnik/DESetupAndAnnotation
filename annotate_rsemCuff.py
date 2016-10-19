@@ -104,7 +104,7 @@ class GeneModelHandler:
                         exon = Exon(chrom, start, end, strand, transcript_id, exon_number, new_attributes)
                         self.transcripts[curr_transcript_id].exons.append(exon)
 
-        if not self.transcripts[curr_transcript_id].wrapped_up:
+        if curr_transcript_id in selected_ids and not self.transcripts[curr_transcript_id].wrapped_up:
             self.wrap_up_transcript(curr_transcript_id, get_protein_seq)
 
     def wrap_up_transcript(self, curr_transcript_id, get_protein_seq):
