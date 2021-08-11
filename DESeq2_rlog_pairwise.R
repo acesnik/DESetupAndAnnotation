@@ -1,6 +1,6 @@
 #Take in filenames
 options(repos = c(CRAN = "https://cran.rstudio.com"))
-#install.packages("optparse")
+install.packages("optparse")
 library(optparse)
 library("RColorBrewer")
 library("ggplot2")
